@@ -8,37 +8,16 @@ ChatGPT URL are examples/placeholders you must replace with your own.
 # One match = apply. Empty list = apply to everything your filters return.
 # Also editable live in the UI while the bot runs.
 keywords = [
-    "python",
-    "fastapi",
-    "django",
-    "rest api",
-    "backend development",
-    "machine learning",
-    "llm",
-    "generative ai",
-    "web scraping",
-    "docker",
-    "react",
-    "typescript",
-    "node.js",
-    "full stack",
-    "software engineering",
+    # ADD YOUR OWN - e.g. "python", "react", "digital marketing", "figma".
+    # WARNING: an empty list means the bot applies to EVERY job your filters
+    # return, so fill this in before your first run.
 ]
 
 # If ANY of these appears in the JOB TITLE (or URL slug), skip without opening.
 # Also editable live in the UI.
 exclude_title_keywords = [
-    "intern",
-    "internship",
-    "teacher",
-    "trainer",
-    "tutor",
-    "support",
-    "sales",
-    "business development",
-    "content",
-    "editor",
-    "telecaller",
+    # e.g. "sales", "intern", "telecaller", "support" - roles you never want,
+    # matched against the job title / URL slug. Fine to leave empty.
 ]
 
 # ---------------------------------------------------------------- ChatGPT
