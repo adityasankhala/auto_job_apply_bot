@@ -48,6 +48,9 @@ interest_answer = (
 # Max applications to submit in one run (0 = unlimited)
 max_applications = 0
 
+# Pause and ask "continue?" after this many applications (0 = never ask)
+batch_size = 0
+
 # Seconds to wait between actions
 action_delay = 2
 

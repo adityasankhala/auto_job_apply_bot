@@ -99,6 +99,15 @@ class App:
         self.btn_pause.config(state="disabled")
         self.btn_continue.config(state="disabled")
 
+        tk.Label(btns, text="Batch:", bg=BG, fg=DIM,
+                 font=("Helvetica", 12)).pack(side="left", padx=(12, 2))
+        self.batch_entry = tk.Entry(btns, width=4, bg=FIELD, fg=FG, relief="flat",
+                                    font=("Menlo", 12), insertbackground=FG,
+                                    justify="center")
+        self.batch_entry.insert(0, str(config.batch_size))
+        self.batch_entry.pack(side="left")
+        self.batch_entry.bind("<KeyRelease>", self._sync_batch)
+
         # keyword boxes
         kw = tk.Frame(r, bg=PANEL)
         kw.pack(fill="x", padx=16, pady=6)
@@ -177,6 +186,7 @@ class App:
             return
         self._sync_bad_words()
         self._sync_good_words()
+        self._sync_batch()
         self.btn_start.config(state="disabled")
         self.btn_pause.config(state="normal")
         self._set_status("Collecting listings…", BLUE)
@@ -209,6 +219,12 @@ class App:
         words = [w.strip().lower() for w in
                  self.bad_words.get("1.0", "end").replace("\n", ",").split(",")]
         config.exclude_title_keywords = [w for w in words if w]
+
+    def _sync_batch(self, _event=None):
+        try:
+            config.batch_size = max(0, int(self.batch_entry.get().strip() or 0))
+        except ValueError:
+            config.batch_size = 0
 
     def _sync_good_words(self, _event=None):
         words = [w.strip().lower() for w in

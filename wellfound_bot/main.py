@@ -535,6 +535,7 @@ def apply_loop(driver, all_links: list[str]) -> int:
     results_tab = driver.current_window_handle
 
     applied = 0
+    batch_mark = 0
     total = len(all_links)
     for i, url in enumerate(all_links, start=1):
         hooks.wait_if_paused()
@@ -567,6 +568,11 @@ def apply_loop(driver, all_links: list[str]) -> int:
                 driver.close()
             driver.switch_to.window(results_tab)
         hooks.on_progress(i, total, applied)
+        if config.batch_size and applied - batch_mark >= config.batch_size:
+            batch_mark = applied
+            notify("Wellfound Bot", f"Batch done — {applied} applied. Continue?")
+            input(f"🎯 Batch complete — {applied} applied so far, {total - i} jobs left. "
+                  f"Press ENTER/Continue for the next {config.batch_size}... ")
         time.sleep(config.action_delay)
 
     print(f"\nDone. Applied to {applied} listings this run.")
