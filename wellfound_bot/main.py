@@ -84,6 +84,29 @@ def already_seen_urls() -> set[str]:
     return urls
 
 
+def save_sleep_job(driver, url: str, title: str, jd: str, reason: str) -> None:
+    """Sleep mode: park a job that needed attention instead of pausing for it."""
+    append_csv(config.sleep_jobs_path,
+               ["timestamp", "title", "company", "url", "reason", "jd"],
+               [time.strftime("%Y-%m-%d %H:%M:%S"), title, get_company_name(driver),
+                url, reason, " ".join(jd.split())[:3000]])
+
+
+class NeedsAttention(Exception):
+    """Raised at would-pause moments when sleep mode is on."""
+    def __init__(self, reason: str):
+        self.reason = reason
+        super().__init__(reason)
+
+
+def attention(reason: str, prompt: str) -> None:
+    """A pause that needs the user - unless sleep mode is on, in which case
+    the caller (process_job) catches NeedsAttention and parks the job."""
+    if config.sleep_mode:
+        raise NeedsAttention(reason)
+    input(prompt)
+
+
 # ---------------------------------------------------------------- helpers
 
 def current_url(driver) -> str:
@@ -397,30 +420,9 @@ def page_says_applied(driver) -> bool:
     return False
 
 
-def process_job(driver, url: str) -> str:
-    driver.get(url)
-    time.sleep(config.action_delay + 1)
-
-    try:
-        h1 = driver.find_element(By.CSS_SELECTOR, "h1")
-        title = h1.text.strip() if h1 is not None else ""
-    except Exception:
-        title = ""
-    if not title:
-        title = url.rstrip("/").rsplit("/", 1)[-1].replace("-", " ")
-
-    bad_word = title_excluded(title)
-    if bad_word:
-        log_result(url, title, f"skipped - excluded title word '{bad_word}'")
-        print(f"⏭️  Excluded ('{bad_word}' in title): {title}")
-        return "skipped"
-
-    jd = driver.find_element(By.TAG_NAME, "body").text
-    if not description_matches(jd):
-        log_result(url, title, "skipped - no keyword match")
-        print(f"⏭️  No keyword match: {title}")
-        return "skipped"
-
+def attempt_apply_form(driver, url: str, title: str, jd: str) -> str:
+    """Everything from 'find/open the apply form' through submission.
+    Raises NeedsAttention (sleep mode) at points that would otherwise pause."""
     # the application form may already be open (slide-in) or need the page
     # Apply button clicked first (modal)
     submit = find_submit(driver)
@@ -466,8 +468,9 @@ def process_job(driver, url: str) -> str:
         submit = find_submit(driver) or submit
     if submit.get_attribute("disabled") is not None and has_qualification_blockers(driver):
         notify("Wellfound Bot", f"Eligibility question on: {title}. Answer it in the browser!")
-        input("⚠️  Couldn't auto-answer the eligibility question. Answer it in "
-              "the browser (don't submit), then press ENTER/Continue... ")
+        attention("eligibility question",
+                  "⚠️  Couldn't auto-answer the eligibility question. Answer it in "
+                  "the browser (don't submit), then press ENTER/Continue... ")
         submit = find_submit(driver) or submit
 
     company = get_company_name(driver)
@@ -496,8 +499,9 @@ def process_job(driver, url: str) -> str:
 
     if submit.get_attribute("disabled") is not None:
         notify("Wellfound Bot", f"Form still blocked on: {title}")
-        input("⚠️  The Send button is still disabled — finish the form in the browser "
-              "(don't submit), then press ENTER/Continue... ")
+        attention("form still blocked",
+                  "⚠️  The Send button is still disabled — finish the form in the browser "
+                  "(don't submit), then press ENTER/Continue... ")
         submit = find_submit(driver) or submit
 
     click(driver, submit)
@@ -517,8 +521,9 @@ def process_job(driver, url: str) -> str:
         time.sleep(1)
     else:
         notify("Wellfound Bot", f"Couldn't confirm submission: {title}")
-        input("Couldn't confirm the application went through. Check the browser, "
-              "finish it if needed, then press ENTER/Continue... ")
+        attention("unconfirmed submission",
+                  "Couldn't confirm the application went through. Check the browser, "
+                  "finish it if needed, then press ENTER/Continue... ")
         log_result(url, title, "applied (manual check)")
         print(f"✅ applied (manual check): {title}")
         return "applied"
@@ -527,6 +532,44 @@ def process_job(driver, url: str) -> str:
     log_result(url, title, "applied")
     print(f"✅ applied: {title}")
     return "applied"
+
+
+def process_job(driver, url: str) -> str:
+    driver.get(url)
+    time.sleep(config.action_delay + 1)
+
+    try:
+        h1 = driver.find_element(By.CSS_SELECTOR, "h1")
+        title = h1.text.strip() if h1 is not None else ""
+    except Exception:
+        title = ""
+    if not title:
+        title = url.rstrip("/").rsplit("/", 1)[-1].replace("-", " ")
+
+    bad_word = title_excluded(title)
+    if bad_word:
+        log_result(url, title, f"skipped - excluded title word '{bad_word}'")
+        print(f"⏭️  Excluded ('{bad_word}' in title): {title}")
+        return "skipped"
+
+    jd = driver.find_element(By.TAG_NAME, "body").text
+    if not description_matches(jd):
+        log_result(url, title, "skipped - no keyword match")
+        print(f"⏭️  No keyword match: {title}")
+        return "skipped"
+
+    try:
+        return attempt_apply_form(driver, url, title, jd)
+    except NeedsAttention as e:
+        # sleep mode: park it for later instead of waiting for the user
+        save_sleep_job(driver, url, title, jd, e.reason)
+        log_result(url, title, f"skipped - needs attention ({e.reason}) [sleep mode]")
+        print(f"😴 Needs attention ({e.reason}) — saved to sleep list, moving on: {title}")
+        try:
+            close_slide_in(driver)
+        except Exception:
+            pass
+        return "skipped"
 
 
 # ---------------------------------------------------------------- main loop

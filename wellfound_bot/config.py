@@ -45,6 +45,16 @@ interest_answer = (
     "shipped, the stack you work with, and that you can start immediately."
 )
 
+# Sleep mode (also a toggle in the UI): when the bot would otherwise need
+# your attention (unanswerable eligibility question, form stuck disabled,
+# unconfirmed submission), it does NOT pause - it saves the job to
+# sleep_jobs.csv (title, company, url, jd, what it needed) and moves on to
+# the next one. Review that sheet whenever you're back.
+sleep_mode = False
+
+import os
+sleep_jobs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sleep_jobs.csv")
+
 # Max applications to submit in one run (0 = unlimited)
 max_applications = 0
 

@@ -27,6 +27,9 @@ application a personalized answer with **no API key and no API cost**.
   external-application jobs (skipped).
 - **Human-in-the-loop** — anything it can't resolve produces a desktop
   notification and a pause; you fix it in the browser and click Continue.
+- **😴 Sleep mode** — walk away and let it run: instead of pausing, jobs that
+  need your attention are parked in `sleep_jobs.csv` (title, company, URL,
+  JD, and what it needed) and the bot moves straight on to the next one.
 - **History & dedupe** — every job logged to `applied_history.csv`; links seen
   in ANY previous run are never opened again.
 - **Crash-proof** — per-job error isolation, full tracebacks in `errors.log`.

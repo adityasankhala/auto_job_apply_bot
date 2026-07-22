@@ -108,6 +108,12 @@ class App:
         self.batch_entry.pack(side="left")
         self.batch_entry.bind("<KeyRelease>", self._sync_batch)
 
+        self.sleep_var = tk.BooleanVar(value=config.sleep_mode)
+        tk.Checkbutton(btns, text="😴 Sleep mode", variable=self.sleep_var,
+                       command=self._sync_sleep, bg=BG, fg=FG, selectcolor=FIELD,
+                       activebackground=BG, activeforeground=FG,
+                       font=("Helvetica", 12)).pack(side="left", padx=(12, 0))
+
         # keyword boxes
         kw = tk.Frame(r, bg=PANEL)
         kw.pack(fill="x", padx=16, pady=6)
@@ -219,6 +225,12 @@ class App:
         words = [w.strip().lower() for w in
                  self.bad_words.get("1.0", "end").replace("\n", ",").split(",")]
         config.exclude_title_keywords = [w for w in words if w]
+
+    def _sync_sleep(self):
+        config.sleep_mode = self.sleep_var.get()
+        if config.sleep_mode:
+            self._log("😴 Sleep mode ON — jobs needing attention go to "
+                      "sleep_jobs.csv instead of pausing.")
 
     def _sync_batch(self, _event=None):
         try:
