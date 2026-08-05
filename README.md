@@ -33,6 +33,7 @@ honestly, it hands back to you.
 
 | Platform | Folder | Highlights |
 |---|---|---|
+| [Internshala](https://internshala.com) | [`internshala_autoapply/`](internshala_autoapply/) | Canned answers for recurring employer questions, cover-letter autofill, external-application jobs parked to a sheet instead of attempted |
 | [Wellfound](https://wellfound.com) | [`wellfound_autoapply/`](wellfound_autoapply/) | ChatGPT-tab integration for personalized "why this company" answers, location-question auto-resolution, sleep mode |
 
 More platforms to come. Each folder is self-contained — its own README,
@@ -40,24 +41,28 @@ config, and requirements — so you only set up the one you actually need.
 
 ## Quick start
 
+Pick the bot for the platform you want — each folder is independent.
+
 ```bash
 git clone https://github.com/RishiDixit-7404/Auto-job-Applier-.git
-cd Auto-job-Applier-/wellfound_autoapply
+cd Auto-job-Applier-/internshala_autoapply    # or wellfound_autoapply
 pip install -r requirements.txt
 ```
 
-**Then edit `wellfound_bot/config.py` before your first run.** Every value in
-it is a placeholder — the keywords, and especially the answer that gets pasted
-into your applications. Running it unedited means applying to everything your
-filters return with placeholder text in the answer box.
+**Then edit the bot's `config.py` before your first run.** Every value in it is
+a placeholder — the keywords, and especially the text that gets pasted into
+your applications. Running it unedited means applying to everything your filters
+return with `REPLACE ME` sitting in the answer box.
 
 ```bash
-python3 -m wellfound_bot.app     # Tkinter UI (recommended)
-python3 -m wellfound_bot.main    # or terminal mode
+python3 -m internshala_bot.app     # Tkinter UI (recommended)
+python3 -m internshala_bot.main    # or terminal mode
 ```
 
-See [`wellfound_autoapply/README.md`](wellfound_autoapply/README.md) for the
-full setup, including the optional ChatGPT integration.
+Set `max_applications = 1` for the first run and watch one application land
+before letting it loose. Each folder's README has the full setup —
+[Internshala](internshala_autoapply/README.md) ·
+[Wellfound](wellfound_autoapply/README.md).
 
 ## Requirements
 
