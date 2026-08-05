@@ -1,101 +1,92 @@
-# Wellfound Auto Applier
+# Auto Job Applier
 
-A desktop app that auto-applies to startup jobs on [Wellfound](https://wellfound.com)
-(formerly AngelList Talent) — with an optional twist: it can send each job
-description to **your own ChatGPT chat** in a browser tab and paste the reply
-into "What interests you about working for this company?", giving every
-application a personalized answer with **no API key and no API cost**.
+Job hunting is mostly clerical work. You find a listing, read it, decide in ten
+seconds whether it's worth your time, and then spend five minutes retyping the
+same name, the same email, the same "why do you want to work here" — over and
+over, a few hundred times, until the hours you should have spent building
+things are gone.
 
-![python](https://img.shields.io/badge/python-3.10%2B-blue) ![selenium](https://img.shields.io/badge/selenium-4.x-green)
+This repo automates the retyping. It does **not** automate the judgment.
 
-## Features
+Each bot drives a real Chrome window that you're logged into, reads each job
+description, applies your filters, fills the form, and moves on — while you
+watch a live log and can pause it at any moment. Anything it can't answer
+honestly, it hands back to you.
 
-- **Tkinter UI** — Open Chrome → log in + set filters → Start Applying.
-  Pause/resume, live stats, color-coded log.
-- **ChatGPT-tab integration (optional)** — the bot drives a chatgpt.com tab in
-  its own browser: types the JD into your project chat, waits for the reply to
-  finish streaming, and pastes it into the application. Your project's custom
-  instructions shape every answer. Falls back to a canned answer on failure.
-- **Keyword matching** — whole-word, hyphen-tolerant; one match in the JD =
-  apply. Editable live in the UI. Empty list = apply to everything.
-- **Bad-title filter** — excluded words are checked against the URL slug, so
-  unwanted jobs are skipped without even opening them. Editable live.
-- **Handles Wellfound's apply flow** — the job-page Apply button, the
-  application modal, the location-mismatch question (auto-selects
-  "I can relocate to…" + the first location option), disabled-form states,
-  "not accepting applications from your location" rejections, and
-  external-application jobs (skipped).
-- **Human-in-the-loop** — anything it can't resolve produces a desktop
-  notification and a pause; you fix it in the browser and click Continue.
-- **😴 Sleep mode** — walk away and let it run: instead of pausing, jobs that
-  need your attention are parked in `sleep_jobs.csv` (title, company, URL,
-  JD, and what it needed) and the bot moves straight on to the next one.
-- **History & dedupe** — every job logged to `applied_history.csv`; links seen
-  in ANY previous run are never opened again.
-- **Crash-proof** — per-job error isolation, full tracebacks in `errors.log`.
+## Principles
 
-## Setup
+- **You stay in control.** You set the search filters yourself, in a real
+  browser, on the site. The bot works through *your* results, not some
+  scraped approximation of them.
+- **Human-in-the-loop.** Any question the bot can't answer truthfully triggers
+  a desktop notification and a pause. You answer it in the browser and click
+  Continue. It never invents an answer about you.
+- **Zero API cost.** Everything runs through your own logged-in browser
+  session. No API keys, no tokens, no per-application billing. The Wellfound
+  bot even personalizes answers by driving your own ChatGPT tab.
+- **Nothing applied to twice.** Every job — applied, skipped, or failed, and
+  why — is logged to a CSV. Links seen in any previous run are never reopened.
+- **You decide the volume.** Batch mode applies to N jobs, then stops and asks
+  before continuing. Quality over spray-and-pray.
 
-Requires Python 3.10+ with tkinter, and Google Chrome.
+## The bots
+
+| Platform | Folder | Highlights |
+|---|---|---|
+| [Wellfound](https://wellfound.com) | [`wellfound_autoapply/`](wellfound_autoapply/) | ChatGPT-tab integration for personalized "why this company" answers, location-question auto-resolution, sleep mode |
+
+More platforms to come. Each folder is self-contained — its own README,
+config, and requirements — so you only set up the one you actually need.
+
+## Quick start
 
 ```bash
-git clone <this-repo>
-cd wellfound_autoapply
+git clone https://github.com/RishiDixit-7404/Auto-job-Applier-.git
+cd Auto-job-Applier-/wellfound_autoapply
 pip install -r requirements.txt
 ```
 
-**Then edit `wellfound_bot/config.py`** — keywords, the interest answer, and
-(optionally) your ChatGPT project URL. All values are placeholders.
-
-## Run
+**Then edit `wellfound_bot/config.py` before your first run.** Every value in
+it is a placeholder — the keywords, and especially the answer that gets pasted
+into your applications. Running it unedited means applying to everything your
+filters return with placeholder text in the answer box.
 
 ```bash
-python3 -m wellfound_bot.app     # UI (recommended)
+python3 -m wellfound_bot.app     # Tkinter UI (recommended)
 python3 -m wellfound_bot.main    # or terminal mode
 ```
 
-1. Click **Open Chrome**. The bot uses its own Chrome profile
-   (`~/.wellfound_bot_profile`) because Chrome 136+ blocks automation on your
-   default profile — log in to Wellfound (and chatgpt.com, if using GPT) once
-   in that window; logins persist.
-2. Set your job filters on wellfound.com/jobs. Tip: tick *"Hide jobs which
-   require me to apply on the company's website"*.
-3. Click **Start Applying**.
+See [`wellfound_autoapply/README.md`](wellfound_autoapply/README.md) for the
+full setup, including the optional ChatGPT integration.
 
-## ChatGPT setup (optional but recommended)
+## Requirements
 
-1. On chatgpt.com, create a **project** with instructions like: *"You will
-   receive a job description. Reply ONLY with a ready-to-paste, first-person,
-   3-4 sentence answer to 'What interests you about working for this
-   company?', specific to what the company does."*
-2. Open a chat inside the project and copy its URL into `chatgpt_url`.
-3. Set `use_chatgpt = True`. The bot opens/finds that tab itself and never
-   closes it. Start a fresh chat every session or two — very long chats make
-   ChatGPT slower.
+Python 3.10+ with tkinter, and Google Chrome. The only third-party dependency
+is Selenium — everything else is the standard library.
 
-## How it decides
+Each bot uses its own persistent Chrome profile (Chrome 136+ blocks automation
+on your default one), so you log in to the job site once and the session
+sticks across runs.
 
-```
-collect all job links (scroll + pagination)
-└─ skip: seen in any previous run, or excluded word in the URL slug
-open each job in its own tab
-└─ skip: excluded word in title, no keyword in JD, already applied,
-         external application, "not accepting applications" banner
-Apply → modal → auto-resolve location question if present
-→ ChatGPT round-trip (or canned answer) → fill → Send application → ✕ → next
-```
+## Responsible use
 
-## Notes
+These tools exist for personal productivity. A few things worth being honest
+about:
 
-- Desktop notifications use macOS `osascript`; other platforms still get the
-  terminal bell and the flashing Continue button.
-- Wellfound's markup changes occasionally; selectors live near the top of
-  `wellfound_bot/main.py`.
-- Use responsibly. Keep `action_delay` ≥ 2, review what you're applying to,
-  and remember automated use may be against Wellfound's terms of service —
-  this tool exists for personal productivity, and you are responsible for how
-  you use it.
+- Automated use may be against a platform's terms of service. That's your call
+  to make, and your risk to carry.
+- Keep `action_delay` at 2 seconds or more. Hammering a site helps nobody.
+- Read what you're applying to. An application you didn't mean to send is
+  worse than one you never sent — it wastes a recruiter's time and yours.
+
+## A note from the author
+
+Created by an unemployed fresher at 3 AM — these bots exist because applying
+to jobs manually was eating the hours I should have spent building things.
+
+If you find bugs or have suggestions, **please raise a PR**. And to everyone
+using this to land something — **all the best.** 🍀
 
 ## License
 
-MIT
+[MIT](LICENSE)
