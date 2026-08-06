@@ -21,11 +21,18 @@ honestly, it hands back to you.
 - **Human-in-the-loop.** Any question the bot can't answer truthfully triggers
   a desktop notification and a pause. You answer it in the browser and click
   Continue. It never invents an answer about you.
+- **Or park it and keep going.** If you'd rather not be interrupted, sleep mode
+  and easy-apply-only mode write those jobs to a spreadsheet — with the question
+  it got stuck on, or the outside URL to apply at — and move on. You work
+  through the sheet later instead of babysitting the run.
 - **Zero API cost.** Everything runs through your own logged-in browser
   session. No API keys, no tokens, no per-application billing. The Wellfound
   bot even personalizes answers by driving your own ChatGPT tab.
-- **Nothing applied to twice.** Every job — applied, skipped, or failed, and
-  why — is logged to a CSV. Links seen in any previous run are never reopened.
+- **It won't run half-configured.** Every `config.py` ships as placeholders, and
+  the bot refuses to start while they're still in place — it lists what needs
+  editing rather than pasting `REPLACE ME` into a real application.
+- **Full history.** Every job — applied, skipped, or failed, and why — is
+  logged to a CSV, so nothing is a black box and no job is a mystery later.
 - **You decide the volume.** Batch mode applies to N jobs, then stops and asks
   before continuing. Quality over spray-and-pray.
 
@@ -38,8 +45,9 @@ honestly, it hands back to you.
 | [Naukri](https://www.naukri.com) | [`naukri_autoapply/`](naukri_autoapply/) | Apply-chatbot auto-answering, easy-apply-only mode, sleep mode that parks attention-needing jobs into spreadsheets instead of pausing |
 | [Wellfound](https://wellfound.com) | [`wellfound_autoapply/`](wellfound_autoapply/) | ChatGPT-tab integration for personalized "why this company" answers, location-question auto-resolution, sleep mode |
 
-More platforms to come. Each folder is self-contained — its own README,
-config, and requirements — so you only set up the one you actually need.
+Each folder is self-contained — its own README, config, and requirements — so
+you only set up the one you actually need. They share the same shape: same UI,
+same keyword filtering, same CSV history, so learning one is learning all four.
 
 ## Quick start
 
@@ -47,7 +55,8 @@ Pick the bot for the platform you want — each folder is independent.
 
 ```bash
 git clone https://github.com/RishiDixit-7404/Auto-job-Applier-.git
-cd Auto-job-Applier-/internshala_autoapply    # or wellfound_autoapply
+cd Auto-job-Applier-/internshala_autoapply
+# or: linkedin_autoapply | naukri_autoapply | wellfound_autoapply
 pip install -r requirements.txt
 ```
 
@@ -61,9 +70,14 @@ python3 -m internshala_bot.app     # Tkinter UI (recommended)
 python3 -m internshala_bot.main    # or terminal mode
 ```
 
+(Swap `internshala_bot` for `linkedin_bot`, `naukri_bot` or `wellfound_bot`
+depending on the folder you picked.)
+
 Set `max_applications = 1` for the first run and watch one application land
 before letting it loose. Each folder's README has the full setup —
 [Internshala](internshala_autoapply/README.md) ·
+[LinkedIn](linkedin_autoapply/README.md) ·
+[Naukri](naukri_autoapply/README.md) ·
 [Wellfound](wellfound_autoapply/README.md).
 
 ## Requirements
