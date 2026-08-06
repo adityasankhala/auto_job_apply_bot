@@ -34,6 +34,7 @@ honestly, it hands back to you.
 | Platform | Folder | Highlights |
 |---|---|---|
 | [Internshala](https://internshala.com) | [`internshala_autoapply/`](internshala_autoapply/) | Canned answers for recurring employer questions, cover-letter autofill, external-application jobs parked to a sheet instead of attempted |
+| [LinkedIn](https://www.linkedin.com/jobs) | [`linkedin_autoapply/`](linkedin_autoapply/) | Multi-step Easy Apply form walker, typeahead-aware city fields, rate-limit pacing with a failure circuit breaker, unattended `autorun` mode |
 | [Wellfound](https://wellfound.com) | [`wellfound_autoapply/`](wellfound_autoapply/) | ChatGPT-tab integration for personalized "why this company" answers, location-question auto-resolution, sleep mode |
 
 More platforms to come. Each folder is self-contained — its own README,
