@@ -577,7 +577,42 @@ def process_job(driver, url: str) -> str:
 
 # ---------------------------------------------------------------- main loop
 
+# Markers from the shipped config.py files. If any of these survive into a run
+# they get typed into real applications sent to real companies.
+PLACEHOLDER_MARKERS = (
+    "REPLACE ME", "YOUR-PORTFOLIO", "YOUR-USERNAME", "YOUR CITY",
+    "YOUR PHONE", "YOUR-PROFILE", "YOUR STATE",
+)
+
+
+def check_config() -> None:
+    """Refuse to start while config.py still holds placeholder answers.
+
+    An unedited clone would otherwise apply to everything and paste
+    "REPLACE ME: ..." into the boxes an employer actually reads."""
+    problems = []
+    for name in ("cover_letter", "interest_answer"):
+        value = getattr(config, name, "") or ""
+        if any(m in value for m in PLACEHOLDER_MARKERS):
+            problems.append(f"config.{name} is still the shipped placeholder")
+
+    for pattern, answer in (getattr(config, "canned_answers", None) or {}).items():
+        if isinstance(answer, str) and any(m in answer for m in PLACEHOLDER_MARKERS):
+            problems.append(f"canned answer for /{pattern[:38]}/ is still a placeholder")
+
+    if problems:
+        raise RuntimeError(
+            "Edit config.py before running - the following would be sent to "
+            "employers as-is:\n  - " + "\n  - ".join(problems)
+        )
+
+    if not getattr(config, "keywords", None):
+        print("\u26a0\ufe0f  config.keywords is empty - EVERY job your filters return "
+              "will be treated as a match.")
+
+
 def apply_loop(driver, all_links: list[str]) -> int:
+    check_config()
     results_tab = driver.current_window_handle
 
     applied = 0
