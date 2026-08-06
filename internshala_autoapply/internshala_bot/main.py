@@ -123,7 +123,10 @@ def visible(el) -> bool:
 def contains_word(text: str, word: str) -> bool:
     """Whole-word, case-insensitive match so short keywords like 'rag' or
     'git' don't fire inside words like 'storage' or 'digital'."""
-    pattern = r"(?<![a-z0-9])" + re.escape(word.lower()) + r"(?![a-z0-9])"
+    # Trailing "s?" so a keyword also matches its plural: "llm" hits "LLMs",
+    # "embedding" hits "embeddings", "api" hits "APIs". Without it the
+    # trailing boundary rejects the plural outright and the job is skipped.
+    pattern = r"(?<![a-z0-9])" + re.escape(word.lower()) + r"s?(?![a-z0-9])"
     return re.search(pattern, text.lower()) is not None
 
 
