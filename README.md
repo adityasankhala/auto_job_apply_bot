@@ -35,6 +35,7 @@ honestly, it hands back to you.
 |---|---|---|
 | [Internshala](https://internshala.com) | [`internshala_autoapply/`](internshala_autoapply/) | Canned answers for recurring employer questions, cover-letter autofill, external-application jobs parked to a sheet instead of attempted |
 | [LinkedIn](https://www.linkedin.com/jobs) | [`linkedin_autoapply/`](linkedin_autoapply/) | Multi-step Easy Apply form walker, typeahead-aware city fields, rate-limit pacing with a failure circuit breaker, unattended `autorun` mode |
+| [Naukri](https://www.naukri.com) | [`naukri_autoapply/`](naukri_autoapply/) | Apply-chatbot auto-answering, easy-apply-only mode, sleep mode that parks attention-needing jobs into spreadsheets instead of pausing |
 | [Wellfound](https://wellfound.com) | [`wellfound_autoapply/`](wellfound_autoapply/) | ChatGPT-tab integration for personalized "why this company" answers, location-question auto-resolution, sleep mode |
 
 More platforms to come. Each folder is self-contained — its own README,
