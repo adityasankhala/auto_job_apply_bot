@@ -87,11 +87,28 @@ about:
 
 ## A note from the author
 
-Created by an unemployed fresher at 3 AM — these bots exist because applying
-to jobs manually was eating the hours I should have spent building things.
+I built this because I was fed up.
 
-If you find bugs or have suggestions, **please raise a PR**. And to everyone
-using this to land something — **all the best.** 🍀
+Fed up of filling the same form for the hundredth time. Fed up of retyping my
+name, my email, my phone number, my "why do you want to work here" — and then
+hearing nothing back. Not getting selected is hard enough; spending your whole
+day on the part that isn't even the hard part is worse. Those were hours I
+should have spent building things, and they were going into copy and paste.
+
+So this exists for exactly one reason: **to automate the applying, so you can
+get on with the getting hired.** That's the whole purpose. Nothing more
+clever than that.
+
+Use it to get a job. Genuinely — that's what it's for.
+
+If you have suggestions, mail me or open an issue. If something's broken at my
+end, raise a PR, or just mail me and I'll fix it. And if this script helps you
+land something — **please tell me.** That would make all the 3 AM debugging
+worth it, and honestly it's the only thank-you I'm after.
+
+All the best for your journey.
+
+**Peace.** 🍀
 
 ## License
 
