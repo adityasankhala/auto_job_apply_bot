@@ -289,6 +289,22 @@ SUBMIT_SEL = ("button[data-test='JobApplicationModal--SubmitButton'], "
 
 
 def find_submit(driver):
+    """Finds the final submit button in the modal or slide-in."""
+    el = driver.execute_script("""
+        var btns = document.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) {
+            var b = btns[i];
+            if (!b.offsetParent && b.offsetWidth === 0) continue;
+            var t = (b.textContent || '').trim().toLowerCase();
+            if (t === 'submit application' || t === 'send application' || t === 'apply') {
+                return b;
+            }
+        }
+        return null;
+    """)
+    if el is not None:
+        return el
+    # Fallback to the old data-test selectors
     for el in driver.find_elements(By.CSS_SELECTOR, SUBMIT_SEL):
         if visible(el):
             return el
@@ -696,14 +712,23 @@ def apply_loop(driver, all_links: list[str]) -> int:
             log_result(url, "", f"error - {type(e).__name__}: {e}")
         finally:
             # close job tabs, but never the ChatGPT tab
-            for handle in driver.window_handles:
-                if handle == results_tab:
-                    continue
-                driver.switch_to.window(handle)
-                if "chatgpt.com" in current_url(driver) or "chat.openai.com" in current_url(driver):
-                    continue
-                driver.close()
-            driver.switch_to.window(results_tab)
+            try:
+                for handle in driver.window_handles:
+                    if handle == results_tab:
+                        continue
+                    try:
+                        driver.switch_to.window(handle)
+                        if "chatgpt.com" in current_url(driver) or "chat.openai.com" in current_url(driver):
+                            continue
+                        driver.close()
+                    except NoSuchWindowException:
+                        continue
+            except Exception:
+                pass
+            try:
+                driver.switch_to.window(results_tab)
+            except NoSuchWindowException:
+                pass
         hooks.on_progress(i, total, applied)
         if config.batch_size and applied - batch_mark >= config.batch_size:
             batch_mark = applied
