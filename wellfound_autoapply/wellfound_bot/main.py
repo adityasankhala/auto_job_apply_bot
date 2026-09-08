@@ -765,6 +765,8 @@ def apply_loop(driver, all_links: list[str]) -> int:
 def _is_logged_in(driver) -> bool:
     """Check if user is logged in to Wellfound."""
     try:
+        # Wait for page to at least start rendering
+        time.sleep(1)
         url = driver.current_url.lower()
         if '/login' in url or '/signup' in url or 'authwall' in url:
             return False
@@ -781,7 +783,12 @@ def _is_logged_in(driver) -> bool:
         if login_btns:
             return False
             
-        return True
+        # To be sure we are logged in, we should see an avatar or the "Jobs" header
+        # but Wellfound UI changes often. Let's just say if there's no Log In button,
+        # and we are on /jobs, we might be logged in. 
+        # But to prevent race condition where page is blank, check if body has content.
+        has_content = driver.execute_script("return document.body.innerText.length > 100;")
+        return has_content
     except Exception:
         return False
 
