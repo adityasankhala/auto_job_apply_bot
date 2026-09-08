@@ -28,15 +28,27 @@ keywords = [
     "sql", "mongodb", "postgresql",
 ]
 
-# If ANY of these appears in the JOB TITLE, skip. Editable live in the UI.
-# Excludes senior roles (you're a fresh grad) and non-tech roles.
+# If ANY of these appears in the JOB TITLE, the bot will skip it without clicking.
 exclude_title_keywords = [
     "senior", "sr.", "lead", "staff", "principal", "manager", "director", "vp",
     "head of", "architect",
     "sales", "marketing", "hr", "recruiter", "teacher", "telecaller",
     "bde", "business development", "content writer", "graphic designer",
-    "chartered accountant", "ca ", "support executive",
+    "chartered accountant", "support executive"
 ]
+
+# If any of these are present, the job must also have one of these words in the TITLE.
+# Empty list = no strict title requirement.
+require_title_keywords = [
+    "software engineer", "software developer", "sde", "backend", "frontend",
+    "full stack", "fullstack", "ml engineer", "machine learning", "data scientist",
+    "data engineer", "ai engineer", "devops", "sre", "web developer", "app developer",
+    "android", "ios", "react", "python"
+]
+
+# Max years of experience allowed. Jobs requesting more than this will be skipped.
+# 0-2 covers freshers/entry-level.
+max_experience = 2
 
 # ---------------------------------------------------------------- your answers
 # ⚠️ FILL_IN: Replace every value below with YOUR real details.

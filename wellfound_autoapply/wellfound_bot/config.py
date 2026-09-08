@@ -25,6 +25,15 @@ keywords = [
     "sql", "mongodb", "postgresql",
 ]
 
+# If any of these are present, the job must also have one of these words in the TITLE.
+# Empty list = no strict title requirement.
+require_title_keywords = [
+    "software engineer", "software developer", "sde", "backend", "frontend",
+    "full stack", "fullstack", "ml engineer", "machine learning", "data scientist",
+    "data engineer", "ai engineer", "devops", "sre", "web developer", "app developer",
+    "android", "ios", "react", "python"
+]
+
 # If ANY of these appears in the JOB TITLE (or URL slug), skip without opening.
 # Also editable live in the UI.
 exclude_title_keywords = [

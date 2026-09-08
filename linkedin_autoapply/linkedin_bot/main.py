@@ -152,6 +152,44 @@ def title_excluded(title: str) -> str | None:
     return None
 
 
+def title_missing_required(title: str) -> bool:
+    if not getattr(config, "require_title_keywords", None):
+        return False
+    # Check if ANY of the required words appear in the title
+    for word in config.require_title_keywords:
+        if contains_word(title, word):
+            return False
+    return True
+
+
+def experience_is_within_limit(text: str, max_allowed: int) -> bool:
+    """Returns True if the job requires <= max_allowed years of experience,
+    or if no explicit experience requirement is found."""
+    text = text.lower()
+    
+    # 1. Match patterns like "3-5 years", "min 5 years", "5+ years" near "experience"
+    matches = re.finditer(r'(?:(?:min|minimum|least)\s+)?(\d+)(?:\s*(?:\+|to|-|–)\s*(\d+))?\s*(?:-\s*)?(?:yr|year)s?(?:\s*of)?\s*(?:industry)?\s*(?:work)?\s*experience', text)
+    
+    max_found = -1
+    for m in matches:
+        val1 = int(m.group(1))
+        # The minimum required is val1 (e.g. "3-5" means minimum 3).
+        if val1 > max_found:
+            max_found = val1
+
+    # 2. Match standalone "5+ years"
+    matches2 = re.finditer(r'(\d+)\+\s*(?:yr|year)s?', text)
+    for m in matches2:
+        val = int(m.group(1))
+        if val > max_found:
+            max_found = val
+
+    if max_found > max_allowed:
+        return False
+        
+    return True
+
+
 def click(driver, el) -> None:
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
     time.sleep(0.5)
@@ -842,7 +880,18 @@ def process_job(driver, url: str) -> str:
         print(f"⏭️  Excluded ('{bad_word}' in title): {title}")
         return "skipped"
 
+    if title_missing_required(title):
+        log_result(url, title, "skipped - missing required title keyword")
+        print(f"⏭️  Missing required tech role in title: {title}")
+        return "skipped"
+
     jd = get_jd_text(driver)
+    
+    if hasattr(config, "max_experience") and not experience_is_within_limit(jd, config.max_experience):
+        log_result(url, title, "skipped - requires too much experience")
+        print(f"⏭️  Requires too much experience: {title}")
+        return "skipped"
+        
     if not description_matches(jd):
         log_result(url, title, "skipped - no keyword match")
         print(f"⏭️  No keyword match: {title}")

@@ -174,9 +174,24 @@ def title_excluded(title: str) -> str | None:
     return None
 
 
+def title_missing_required(title: str) -> bool:
+    if not getattr(config, "require_title_keywords", None):
+        return False
+    # Check if ANY of the required words appear in the title
+    for word in config.require_title_keywords:
+        if contains_word(title, word):
+            return False
+    return True
+
+
 def url_excluded(url: str) -> str | None:
     slug = url.rstrip("/").rsplit("/", 1)[-1].split("?")[0].replace("-", " ")
-    return title_excluded(slug)
+    excluded_word = title_excluded(slug)
+    if excluded_word:
+        return excluded_word
+    if title_missing_required(slug):
+        return "missing required title keyword"
+    return None
 
 
 def click(driver, el) -> None:
@@ -618,6 +633,11 @@ def process_job(driver, url: str) -> str:
         print(f"⏭️  Excluded ('{bad_word}' in title): {title}")
         return "skipped"
 
+    if title_missing_required(title):
+        log_result(url, title, "skipped - missing required title keyword")
+        print(f"⏭️  Missing required tech role in title: {title}")
+        return "skipped"
+
     jd = driver.find_element(By.TAG_NAME, "body").text
     
     if hasattr(config, "max_experience") and not experience_is_within_limit(jd, config.max_experience):
@@ -745,17 +765,23 @@ def apply_loop(driver, all_links: list[str]) -> int:
 def _is_logged_in(driver) -> bool:
     """Check if user is logged in to Wellfound."""
     try:
-        # Wellfound shows a nav avatar or user menu when logged in
-        indicators = driver.find_elements(
-            By.CSS_SELECTOR,
-            "a[href*='/profile'], img[alt*='avatar'], [data-test='NavUser'], "
-            "a[href='/jobs'], button[data-test='UserMenu']"
-        )
-        # Also check if we're NOT on the login/signup page
         url = driver.current_url.lower()
         if '/login' in url or '/signup' in url or 'authwall' in url:
             return False
-        return len(indicators) > 0
+        
+        # If there's a "Log In" or "Sign Up" button on the page, we are not logged in.
+        login_btns = driver.execute_script("""
+            var links = document.querySelectorAll('a, button');
+            for (var i=0; i<links.length; i++) {
+                var t = (links[i].textContent || '').trim().toLowerCase();
+                if (t === 'log in' || t === 'sign up') return true;
+            }
+            return false;
+        """)
+        if login_btns:
+            return False
+            
+        return True
     except Exception:
         return False
 
