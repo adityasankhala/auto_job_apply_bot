@@ -271,14 +271,35 @@ def find_submit(driver):
 
 def find_page_apply(driver):
     """The plain Apply button on the job page that OPENS the application modal.
-    Returns (element, 'apply'|'applied'|'not_found')."""
-    for el in driver.find_elements(
-            By.CSS_SELECTOR, "button[class*='applyButton'], button[data-test='Button'], a[class*='apply'], button[class*='styles_button']"):
-        if not visible(el):
-            continue
+    Returns (element, 'apply'|'applied'|'not_found').
+    Uses JavaScript to find buttons by text content — immune to CSS class changes."""
+    # JS-based finder: scan ALL buttons, links, and spans for "Apply" text
+    el = driver.execute_script("""
+        var candidates = document.querySelectorAll('button, a, [role="button"]');
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (!el.offsetParent && el.offsetWidth === 0) continue;
+            var t = (el.textContent || '').trim().toLowerCase();
+            if (t === 'apply' || t === 'apply now' || t === 'easy apply' || t === 'quick apply') {
+                return el;
+            }
+        }
+        // Check for "Applied" state
+        for (var i = 0; i < candidates.length; i++) {
+            var el = candidates[i];
+            if (!el.offsetParent && el.offsetWidth === 0) continue;
+            var t = (el.textContent || '').trim().toLowerCase();
+            if (t === 'applied') {
+                return el;
+            }
+        }
+        return null;
+    """)
+    if el is not None:
         text = (el.text or "").strip().lower()
-        if "apply" in text or "applied" in text:
-            return el, "applied" if "applied" in text else "apply"
+        if "applied" in text:
+            return el, "applied"
+        return el, "apply"
     return None, "not_found"
 
 

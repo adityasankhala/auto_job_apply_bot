@@ -419,59 +419,138 @@ ANY_APPLY_SEL = "a[aria-label*='pply' i], button[aria-label*='pply' i]"
 APPLIED_SEL = "[componentkey='AppliedHowYouFitSlot'], [aria-label*='applied' i]"
 
 
+def _sdui_apply_url(driver) -> str | None:
+    """Construct the SDUI Easy Apply URL from the current job page URL."""
+    m = JOB_LINK_RE.search(driver.current_url)
+    if m:
+        return f"https://www.linkedin.com/jobs/view/{m.group(1)}/apply/?openSDUIApplyFlow=true"
+    return None
+
+
 def find_apply_target(driver):
     """Returns (target, 'easy'|'external'|'applied'|'not_found').
 
-    For 'easy' the target is the apply URL when we have one, because the SDUI flow
-    only opens by navigation - clicking the anchor is a no-op (verified). Old-UI
-    buttons come back as elements instead.
+    For 'easy' the target is the SDUI apply URL when available, because
+    LinkedIn's new UI only opens the form by navigating to the /apply/ URL.
+    Clicking the button alone is unreliable.
     """
     if driver.find_elements(By.CSS_SELECTOR, APPLIED_SEL):
         return None, "applied"
 
-    for el in driver.find_elements(By.CSS_SELECTOR, EASY_APPLY_SEL):
-        if not visible(el):
-            continue
-        label = ((el.get_attribute("aria-label") or "") + " " + (el.text or "")).lower()
-        if "easy apply" in label or "opensduiapplyflow" in (el.get_attribute("href") or "").lower():
-            return (el.get_attribute("href") or el), "easy"
+    # JS-based button finder — immune to CSS class name changes
+    easy_btn = driver.execute_script("""
+        var btns = document.querySelectorAll('button, a');
+        for (var i = 0; i < btns.length; i++) {
+            var el = btns[i];
+            if (!el.offsetParent && el.offsetWidth === 0) continue;
+            var t = (el.textContent || '').trim().toLowerCase();
+            var a = (el.getAttribute('aria-label') || '').toLowerCase();
+            var h = (el.getAttribute('href') || '').toLowerCase();
+            if (t === 'easy apply' || a.indexOf('easy apply') >= 0 || h.indexOf('opensduiapplyflow') >= 0) {
+                return el;
+            }
+        }
+        return null;
+    """)
 
-    for el in driver.find_elements(By.CSS_SELECTOR, ANY_APPLY_SEL):
-        if not visible(el):
-            continue
-        label = ((el.get_attribute("aria-label") or "") + " " + (el.text or "")).lower()
+    if easy_btn is not None:
+        # Prefer the SDUI URL (navigation always works); fall back to element
+        sdui_url = _sdui_apply_url(driver)
+        return (sdui_url or easy_btn), "easy"
+
+    # Fallback: any apply button (external applications)
+    apply_btn = driver.execute_script("""
+        var btns = document.querySelectorAll('button, a');
+        for (var i = 0; i < btns.length; i++) {
+            var el = btns[i];
+            if (!el.offsetParent && el.offsetWidth === 0) continue;
+            var t = (el.textContent || '').trim().toLowerCase();
+            var a = (el.getAttribute('aria-label') || '').toLowerCase();
+            if ((t.indexOf('apply') >= 0 || a.indexOf('apply') >= 0) && a.indexOf('resource') < 0) {
+                return el;
+            }
+        }
+        return null;
+    """)
+
+    if apply_btn is not None:
+        label = ((apply_btn.get_attribute("aria-label") or "") + " " + (apply_btn.text or "")).lower()
         if "easy apply" in label:
-            return (el.get_attribute("href") or el), "easy"
-        if "apply" in label and "resource" not in label:
-            return el, "external"
+            sdui_url = _sdui_apply_url(driver)
+            return (sdui_url or apply_btn), "easy"
+        return apply_btn, "external"
 
     return None, "not_found"
 
 
 # ---------------------------------------------------------------- Easy Apply modal
 
-MODAL_SEL = "[role='dialog'], .jobs-easy-apply-modal, div[class*='jobs-easy-apply']"
+MODAL_SEL = ("[role='dialog'], .jobs-easy-apply-modal, div[class*='jobs-easy-apply'], "
+             "[data-test-modal-id='easy-apply-modal'], form[class*='apply'], "
+             "div[class*='artdeco-modal']")
 
 
 def find_modal(driver):
+    """Find the Easy Apply modal/form. Works with both old-style modals and the
+    new SDUI flow which renders an inline form on the /apply/ URL."""
+    # Classic modal selectors
     for el in driver.find_elements(By.CSS_SELECTOR, MODAL_SEL):
         if visible(el):
             return el
-    return None
+    # SDUI form: the /apply/ page renders the form inline (no dialog role)
+    # Look for any visible form with submit/next buttons
+    form = driver.execute_script("""
+        var forms = document.querySelectorAll('form');
+        for (var i = 0; i < forms.length; i++) {
+            var f = forms[i];
+            if (!f.offsetParent && f.offsetWidth === 0) continue;
+            var btns = f.querySelectorAll('button');
+            for (var j = 0; j < btns.length; j++) {
+                var t = (btns[j].textContent || '').toLowerCase();
+                if (t.indexOf('submit') >= 0 || t.indexOf('next') >= 0 || t.indexOf('review') >= 0 || t.indexOf('continue') >= 0) {
+                    return f;
+                }
+            }
+        }
+        // Also look for the SDUI apply container
+        var containers = document.querySelectorAll('[class*="apply"], [class*="Apply"]');
+        for (var i = 0; i < containers.length; i++) {
+            var c = containers[i];
+            if (!c.offsetParent && c.offsetWidth === 0) continue;
+            var inputs = c.querySelectorAll('input, select, textarea');
+            if (inputs.length > 0) return c;
+        }
+        return null;
+    """)
+    return form
 
 
 def open_easy_apply(driver, target) -> bool:
-    """Open the Easy Apply dialog. The SDUI flow ignores clicks on its anchor
-    (both native and scripted), so navigating to the apply URL is the only thing
-    that actually opens it. Returns True once the dialog is on screen."""
+    """Open the Easy Apply form. The new SDUI flow requires navigating to the
+    /apply/ URL — clicking the button alone is unreliable. Returns True once
+    the form is on screen."""
+    # Strategy 1: If target is a URL, navigate directly
     if isinstance(target, str):
         driver.get(target)
     else:
+        # Strategy 2: Click the button
         click(driver, target)
-    for _ in range(20):
+
+    # Wait for modal/form to appear
+    for _ in range(12):
         time.sleep(0.75)
         if find_modal(driver) is not None:
             return True
+
+    # Strategy 3: If clicking didn't work, try the SDUI URL
+    sdui_url = _sdui_apply_url(driver)
+    if sdui_url and (not isinstance(target, str) or 'openSDUIApplyFlow' not in target):
+        driver.get(sdui_url)
+        for _ in range(12):
+            time.sleep(0.75)
+            if find_modal(driver) is not None:
+                return True
+
     return False
 
 
