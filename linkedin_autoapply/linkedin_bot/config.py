@@ -1,8 +1,12 @@
 """
 LinkedIn Auto Applier - Configuration
 
-Edit EVERYTHING in this file before your first run. Every answer below is a
-placeholder and none of them are usable as-is.
+⚠️  PERSONAL DETAILS: Search for "⚠️ FILL_IN" below and replace every one
+with your real information before the first run.
+
+Tuned for: Fresh graduate (0 YOE) in India targeting SDE / Backend / ML /
+DevOps / Full Stack roles. Rate-limit settings are calibrated for 2-3 runs
+per day totalling ~70 LinkedIn applications.
 """
 
 # Keywords to look for in the job description (case-insensitive, whole-word,
@@ -10,30 +14,45 @@ placeholder and none of them are usable as-is.
 # One match = apply. Empty list = apply to everything your filters return.
 # Also editable live in the UI.
 keywords = [
-    # ADD YOUR OWN - e.g. "python", "react", "machine learning", "figma".
-    # WARNING: an empty list means every job your search returns is a match.
+    "python", "django", "flask", "fastapi",
+    "java", "spring boot",
+    "javascript", "react", "node",
+    "c++", "cpp",
+    "machine learning", "deep learning", "data science", "nlp",
+    "tensorflow", "pytorch",
+    "devops", "docker", "kubernetes", "aws", "gcp", "azure", "cloud",
+    "ci/cd", "terraform",
+    "software engineer", "software developer", "sde",
+    "backend", "full stack", "fullstack",
+    "api", "microservice",
+    "sql", "mongodb", "postgresql",
 ]
 
 # If ANY of these appears in the JOB TITLE, skip. Editable live in the UI.
+# Excludes senior roles (you're a fresh grad) and non-tech roles.
 exclude_title_keywords = [
-    # e.g. "intern", "sales", "teacher" - roles you never want.
+    "senior", "sr.", "lead", "staff", "principal", "manager", "director", "vp",
+    "head of", "architect",
+    "sales", "marketing", "hr", "recruiter", "teacher", "telecaller",
+    "bde", "business development", "content writer", "graphic designer",
+    "chartered accountant", "ca ", "support executive",
 ]
 
 # ---------------------------------------------------------------- your answers
-# Fill these in. They feed the canned answers below, so each value lives in
-# exactly one place.
+# ⚠️ FILL_IN: Replace every value below with YOUR real details.
+# The bot refuses to start if placeholders survive.
 _years = "0"                      # total years of professional experience
 _months = "0"                     # additional months, if asked separately
-_notice = "0"                     # notice period in days
-_current_ctc = "0"                # current annual salary / CTC
-_expected_ctc = "0"               # expected annual salary / CTC
-_city = "YOUR CITY, YOUR STATE"   # typed into location typeaheads
-_phone = "YOUR PHONE NUMBER"
-_linkedin = "https://www.linkedin.com/in/YOUR-PROFILE/"
-_portfolio = "https://YOUR-PORTFOLIO.example"
-_github = "https://github.com/YOUR-USERNAME"
-# "No" means "I do NOT need sponsorship" - it answers sponsorship questions
-# verbatim, so set it to whatever is true for you.
+_notice = "0"                     # notice period in days (0 = can join immediately)
+_current_ctc = "0"                # current annual salary / CTC (0 for freshers)
+_expected_ctc = "500000"               # expected annual salary / CTC (or a real figure like "400000")
+_city = "Jaipur, India"             # e.g. "Delhi, India" or "Bangalore, Karnataka"
+_phone = "8824271797"            # e.g. "9876543210"
+_linkedin = "https://www.linkedin.com/in/aditya-saini-136041316/"         # e.g. "https://www.linkedin.com/in/your-name/"
+_portfolio = " "        # e.g. "https://your-portfolio.dev" or your GitHub URL
+_github = "https://github.com/adityasankhala"           # e.g. "https://github.com/your-username"
+# "No" means "I do NOT need sponsorship" — applies to Indian nationals applying
+# within India. Change to "Yes" if you're applying abroad and need a visa.
 _visa = "No"
 
 # Auto-answers for Easy Apply form questions. The FIRST regex
@@ -84,6 +103,12 @@ canned_answers = {
     r"start immediately|available to (start|join)|immediate":
         "Yes",
 
+    r"(degree|education|qualification)":
+        "Bachelor",
+
+    r"(gpa|cgpa|grade|percentage)":
+        "0",
+
     r"portfolio|personal website|website url":
         _portfolio,
 
@@ -98,12 +123,19 @@ canned_answers = {
 
     r"english|hindi|language proficiency":
         "Professional",
+
+    r"cover letter":
+        "I am a final-year student passionate about technology and eager to "
+        "contribute to your team. With hands-on experience in Python, ML, and "
+        "full-stack development through personal projects, I am ready to start "
+        "immediately and grow with your organization.",
 }
 
 # Easy-apply-only mode (also a toggle in the UI): when the Easy Apply form has
 # a question the bot can't answer, do NOT pause - save the job to
 # question_jobs.csv, dismiss it, and move on.
-easy_apply_only = False
+# Set True for unattended runs so it never blocks waiting for you.
+easy_apply_only = True
 
 import os
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -115,28 +147,28 @@ question_jobs_path = os.path.join(_BASE_DIR, "question_jobs.csv")
 external_jobs_path = os.path.join(_BASE_DIR, "external_jobs.csv")
 
 # Max applications to submit in one run (0 = unlimited).
-# Set this to 1 for your first run so you can watch one application land.
-max_applications = 0
+# Set to 35 to stay under LinkedIn's ~33-app throttle threshold with margin.
+# Run 2-3 times/day for ~70-100 LinkedIn applications total.
+max_applications = 35
 
 # Pause and ask "continue?" after this many applications (0 = never ask)
 batch_size = 0
 
 # Seconds to wait between actions (LinkedIn is bot-hostile: keep >= 2).
-# A 45-minute burst of ~33 applications at delay=3 got the Easy Apply flow gated
-# server-side for hours, so the unattended runner uses a larger value than this.
-action_delay = 2
+action_delay = 3
 
 # Extra seconds to wait after each SUBMITTED application (0 = none). Submissions,
 # not page views, are what the apply flow rate-limits, so spacing those out is
 # what actually keeps a long run alive. The wait happens after the job tab is
 # closed, not while it sits open.
-post_apply_delay = 45
+# 30s is aggressive but sustainable for 35-app bursts spaced 6+ hours apart.
+post_apply_delay = 30
 
 # Stop the run after this many apply attempts fail back-to-back (0 = never stop).
 # LinkedIn throttles the Easy Apply flow after a burst of applications: it simply
 # stops serving the form, so every subsequent job fails. Without this the bot
 # would walk the rest of the queue against a wall.
-failure_circuit_breaker = 4
+failure_circuit_breaker = 5
 
 log_csv_path = os.path.join(_BASE_DIR, "applied_history.csv")
 questions_log_path = os.path.join(_BASE_DIR, "questions_log.csv")

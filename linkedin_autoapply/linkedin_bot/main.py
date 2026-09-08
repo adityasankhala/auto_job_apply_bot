@@ -180,9 +180,9 @@ JOB_LINK_RE = re.compile(r"/jobs/view/(\d+)")
 
 # Result cards are click-only <div role="button"> elements - they carry no href.
 # Their job id lives in componentkey="job-card-component-ref-<jobId>".
-CARD_SEL = "[componentkey^='job-card-component-ref-']"
+CARD_SEL = "[data-job-id], [data-occludable-job-id], [componentkey^='job-card-component-ref-']"
 # The scrollable results column (also used by the details pane, so pick by card count).
-LIST_PANE_SEL = "[data-testid='lazy-column']"
+LIST_PANE_SEL = "[data-testid='lazy-column'], .jobs-search-results-list"
 
 
 def canonical_job_url(href: str) -> str | None:
@@ -199,8 +199,12 @@ def card_ids(driver) -> list[str]:
     ids = driver.execute_script("""
         var out = [], seen = {};
         document.querySelectorAll(arguments[0]).forEach(function (el) {
-            var m = (el.getAttribute('componentkey') || '').match(/(\\d+)$/);
-            if (m && !seen[m[1]]) { seen[m[1]] = 1; out.push(m[1]); }
+            var jid = el.getAttribute('data-job-id') || el.getAttribute('data-occludable-job-id');
+            if (!jid) {
+                var m = (el.getAttribute('componentkey') || '').match(/(\\d+)$/);
+                if (m) jid = m[1];
+            }
+            if (jid && !seen[jid]) { seen[jid] = 1; out.push(jid); }
         });
         return out;
     """, CARD_SEL)
@@ -405,14 +409,14 @@ def save_job_to_sheet(path: str, driver, url: str, title: str, jd: str) -> None:
                 url, " ".join(jd.split())[:3000]])
 
 
-# Easy Apply is now an <a>, not a <button>: aria-label="Easy Apply to this job",
-# href=".../jobs/view/<id>/apply/?openSDUIApplyFlow=true".
-EASY_APPLY_SEL = ("a[aria-label*='Easy Apply'], a[href*='openSDUIApplyFlow'], "
-                  "button[aria-label*='Easy Apply'], button.jobs-apply-button, "
+# Easy Apply is now a <button> with lowercase aria-label "easy apply to this job"
+# and hashed CSS class names. The 'i' flag makes CSS attribute matching case-insensitive.
+EASY_APPLY_SEL = ("a[aria-label*='easy apply' i], a[href*='openSDUIApplyFlow'], "
+                  "button[aria-label*='easy apply' i], button.jobs-apply-button, "
                   "button[class*='jobs-apply']")
-ANY_APPLY_SEL = "a[aria-label*='pply'], button[aria-label*='pply']"
+ANY_APPLY_SEL = "a[aria-label*='pply' i], button[aria-label*='pply' i]"
 # Present only on jobs already applied to (replaces the apply control).
-APPLIED_SEL = "[componentkey='AppliedHowYouFitSlot']"
+APPLIED_SEL = "[componentkey='AppliedHowYouFitSlot'], [aria-label*='applied' i]"
 
 
 def find_apply_target(driver):
@@ -555,7 +559,7 @@ def fill_modal_fields(driver, modal, url: str, title: str) -> list[str]:
 
     # text / numeric inputs and textareas
     for el in modal.find_elements(By.CSS_SELECTOR,
-                                  "input[type='text'], input[type='number'], input:not([type]), textarea"):
+                                  "input[type='text'], input[type='number'], input[type='tel'], input[type='email'], input:not([type]), textarea"):
         try:
             if not visible(el) or (el.get_attribute("value") or "").strip():
                 continue
@@ -765,6 +769,14 @@ def process_job(driver, url: str) -> str:
         print(f"⏭️  No keyword match: {title}")
         return "skipped"
 
+    # Resume advisor: classify and log which resume fits this job best
+    try:
+        from linkedin_bot.resume_advisor import advise
+        category = advise(url, title, jd)
+        print(f"📄 Resume recommendation: {category}")
+    except Exception:
+        pass  # resume advisor is advisory, never break the run
+
     target, state = find_apply_target(driver)
     if state == "applied":
         log_result(url, title, "skipped - already applied")
@@ -799,7 +811,7 @@ def process_job(driver, url: str) -> str:
 # they get typed into real applications sent to real companies.
 PLACEHOLDER_MARKERS = (
     "REPLACE ME", "YOUR-PORTFOLIO", "YOUR-USERNAME", "YOUR CITY",
-    "YOUR PHONE", "YOUR-PROFILE", "YOUR STATE",
+    "YOUR PHONE", "YOUR-PROFILE", "YOUR STATE", "⚠️ FILL_IN",
 )
 
 

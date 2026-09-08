@@ -3,6 +3,8 @@ Unattended LinkedIn Easy Apply run.
 
     python3 -m linkedin_bot.autorun            # apply to everything the search returns
     python3 -m linkedin_bot.autorun --limit 1  # stop after N applications (validation)
+    python3 -m linkedin_bot.autorun --role sde  # SDE-focused search
+    python3 -m linkedin_bot.autorun --role ml   # ML/AI-focused search
 
 No human is watching, so this run never blocks:
   * easy_apply_only = True  -> jobs with questions the bot can't answer honestly
@@ -21,27 +23,60 @@ from linkedin_bot import config
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LOG_PATH = os.path.join(_BASE_DIR, "autorun.log")
 
-# REPLACE THIS with your own search: set up the search on linkedin.com/jobs
-# with the filters you want (Easy Apply on, date posted, salary, location) and
-# paste the resulting address-bar URL here, or pass it with --url.
-#   f_AL=true   -> Easy Apply only (strongly recommended for unattended runs)
-#   f_TPR=r604800 -> posted in the last 7 days
-SEARCH_URL = (
-    "https://www.linkedin.com/jobs/search-results/"
-    "?keywords=python&f_AL=true&f_TPR=r604800"
-)
+# India-specific search URLs for a fresh graduate.
+# f_AL=true   -> Easy Apply only
+# f_TPR=r604800 -> posted in the last 7 days
+# f_E=1,2     -> Entry level + Associate (fresh grad friendly)
+# geoId=102713980 -> India
+SEARCH_URLS = {
+    "general": (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=software%20developer&f_AL=true&f_TPR=r604800"
+        "&f_E=1,2&geoId=102713980"
+    ),
+    "sde": (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=software%20engineer%20python&f_AL=true&f_TPR=r604800"
+        "&f_E=1,2&geoId=102713980"
+    ),
+    "backend": (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=backend%20developer%20python%20django&f_AL=true&f_TPR=r604800"
+        "&f_E=1,2&geoId=102713980"
+    ),
+    "ml": (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=machine%20learning%20data%20science&f_AL=true&f_TPR=r604800"
+        "&f_E=1,2&geoId=102713980"
+    ),
+    "devops": (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=devops%20cloud%20engineer&f_AL=true&f_TPR=r604800"
+        "&f_E=1,2&geoId=102713980"
+    ),
+    "fullstack": (
+        "https://www.linkedin.com/jobs/search/"
+        "?keywords=full%20stack%20developer&f_AL=true&f_TPR=r604800"
+        "&f_E=1,2&geoId=102713980"
+    ),
+}
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--limit", type=int, default=25,
+    ap = argparse.ArgumentParser(description="Unattended LinkedIn Easy Apply runner")
+    ap.add_argument("--limit", type=int, default=35,
                     help="max applications this session (0 = unlimited). "
-                         "Default 25: LinkedIn gated the apply flow after ~33 in one burst.")
-    ap.add_argument("--delay", type=int, default=4, help="seconds between actions")
-    ap.add_argument("--apply-delay", type=int, default=45,
+                         "Default 35: LinkedIn gates the apply flow after ~33 in one burst.")
+    ap.add_argument("--delay", type=int, default=3, help="seconds between actions")
+    ap.add_argument("--apply-delay", type=int, default=30,
                     help="extra seconds to wait after each submitted application")
-    ap.add_argument("--url", default=SEARCH_URL)
+    ap.add_argument("--role", choices=list(SEARCH_URLS.keys()), default="general",
+                    help="Role theme for the search URL (default: general)")
+    ap.add_argument("--url", default=None,
+                    help="Override search URL entirely (ignores --role)")
     args = ap.parse_args()
+
+    search_url = args.url or SEARCH_URLS[args.role]
 
     config.easy_apply_only = True   # park question-jobs instead of blocking
     config.batch_size = 0           # never stop to ask
@@ -79,14 +114,16 @@ def main() -> int:
     bot.hooks = AutoHooks()
 
     write("=" * 70)
-    write(f"autorun start · limit={args.limit or '∞'} · easy_apply_only=True")
+    write(f"autorun start · limit={args.limit or '∞'} · role={args.role} · easy_apply_only=True")
+    write(f"search URL: {search_url[:120]}")
 
     driver, _wait, _actions = create_session()
     try:
-        driver.get(args.url)
+        driver.get(search_url)
         time.sleep(10)
         if "login" in driver.current_url or "authwall" in driver.current_url:
             write("❌ Not logged in to LinkedIn in the bot profile — aborting.")
+            write("   Run `python3 -m linkedin_bot.app` first to open Chrome and log in.")
             return 2
 
         links = bot.gather_links(driver)
@@ -112,3 +149,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+

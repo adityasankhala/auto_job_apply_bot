@@ -273,12 +273,12 @@ def find_page_apply(driver):
     """The plain Apply button on the job page that OPENS the application modal.
     Returns (element, 'apply'|'applied'|'not_found')."""
     for el in driver.find_elements(
-            By.CSS_SELECTOR, "button[class*='applyButton'], button[data-test='Button']"):
+            By.CSS_SELECTOR, "button[class*='applyButton'], button[data-test='Button'], a[class*='apply'], button[class*='styles_button']"):
         if not visible(el):
             continue
         text = (el.text or "").strip().lower()
-        if text in ("apply", "applied"):
-            return el, text
+        if "apply" in text or "applied" in text:
+            return el, "applied" if "applied" in text else "apply"
     return None, "not_found"
 
 
@@ -581,7 +581,7 @@ def process_job(driver, url: str) -> str:
 # they get typed into real applications sent to real companies.
 PLACEHOLDER_MARKERS = (
     "REPLACE ME", "YOUR-PORTFOLIO", "YOUR-USERNAME", "YOUR CITY",
-    "YOUR PHONE", "YOUR-PROFILE", "YOUR STATE",
+    "YOUR PHONE", "YOUR-PROFILE", "YOUR STATE", "⚠️ FILL_IN",
 )
 
 
@@ -625,7 +625,10 @@ def apply_loop(driver, all_links: list[str]) -> int:
             break
         limit = config.max_applications or "∞"
         print(f"\n[{i}/{total} — {total - i} left | applied {applied}/{limit}]")
-        driver.switch_to.new_window("tab")
+        # Selenium's switch_to.new_window("tab") can return None for the handle dictionary
+        # in some versions/drivers, throwing a TypeError. JS is reliable.
+        driver.execute_script("window.open('about:blank', '_blank');")
+        driver.switch_to.window(driver.window_handles[-1])
         try:
             if process_job(driver, url) == "applied":
                 applied += 1
@@ -661,9 +664,69 @@ def apply_loop(driver, all_links: list[str]) -> int:
     return applied
 
 
+def _is_logged_in(driver) -> bool:
+    """Check if user is logged in to Wellfound."""
+    try:
+        # Wellfound shows a nav avatar or user menu when logged in
+        indicators = driver.find_elements(
+            By.CSS_SELECTOR,
+            "a[href*='/profile'], img[alt*='avatar'], [data-test='NavUser'], "
+            "a[href='/jobs'], button[data-test='UserMenu']"
+        )
+        # Also check if we're NOT on the login/signup page
+        url = driver.current_url.lower()
+        if '/login' in url or '/signup' in url or 'authwall' in url:
+            return False
+        return len(indicators) > 0
+    except Exception:
+        return False
+
+
 def main():
     driver, wait, actions = create_session()
+
+    # Navigate to Wellfound jobs page
     driver.get("https://wellfound.com/jobs")
+    time.sleep(5)
+
+    # Check login state
+    if not _is_logged_in(driver):
+        print("\n" + "=" * 70)
+        print("  ⚠️  NOT LOGGED IN to Wellfound")
+        print("=" * 70)
+        print()
+        print("  This bot uses a SEPARATE Chrome profile (~/.wellfound_bot_profile).")
+        print("  Your regular Chrome login does NOT carry over.")
+        print()
+        print("  👉 Please log in to Wellfound in the Chrome window that just opened.")
+        print("     (Use email/password or Google sign-in)")
+        print()
+
+        # Navigate to the login page for convenience
+        driver.get("https://wellfound.com/login")
+        time.sleep(2)
+
+        # Wait for login
+        print("  Waiting for you to log in...", end="", flush=True)
+        for _ in range(300):  # wait up to 5 minutes
+            time.sleep(3)
+            if _is_logged_in(driver):
+                break
+            # Also check if they navigated away from login (successful redirect)
+            url = driver.current_url.lower()
+            if '/login' not in url and '/signup' not in url:
+                time.sleep(2)
+                if _is_logged_in(driver):
+                    break
+        else:
+            print("\n\n  ❌ Timed out waiting for login. Please try again.")
+            driver.quit()
+            return
+
+        print(" ✅ Logged in!")
+        # Go back to jobs page
+        driver.get("https://wellfound.com/jobs")
+        time.sleep(3)
 
     input(
         "\nLog in to Wellfound and set your job filters "

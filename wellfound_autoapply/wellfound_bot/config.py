@@ -1,34 +1,45 @@
 """
 Wellfound Auto Applier - Configuration
-Edit EVERYTHING in this file before running: keywords, answers, and the
-ChatGPT URL are examples/placeholders you must replace with your own.
+
+⚠️  PERSONAL DETAILS: Search for "⚠️ FILL_IN" below and replace every one
+with your real information before the first run.
+
+Tuned for: Fresh graduate (0 YOE) in India targeting startup roles —
+SDE, Backend, ML, DevOps, Full Stack.
 """
 
 # Keywords to look for in the job description (case-insensitive, whole-word).
 # One match = apply. Empty list = apply to everything your filters return.
 # Also editable live in the UI while the bot runs.
 keywords = [
-    # ADD YOUR OWN - e.g. "python", "react", "digital marketing", "figma".
-    # WARNING: an empty list means the bot applies to EVERY job your filters
-    # return, so fill this in before your first run.
+    "python", "django", "flask", "fastapi",
+    "java", "spring boot",
+    "javascript", "react", "node",
+    "c++", "cpp",
+    "machine learning", "deep learning", "data science", "nlp",
+    "tensorflow", "pytorch",
+    "devops", "docker", "kubernetes", "aws", "gcp", "azure", "cloud",
+    "software engineer", "software developer", "sde",
+    "backend", "full stack", "fullstack",
+    "api", "microservice",
+    "sql", "mongodb", "postgresql",
 ]
 
 # If ANY of these appears in the JOB TITLE (or URL slug), skip without opening.
 # Also editable live in the UI.
 exclude_title_keywords = [
-    # e.g. "sales", "intern", "telecaller", "support" - roles you never want,
-    # matched against the job title / URL slug. Fine to leave empty.
+    "senior", "sr.", "lead", "staff", "principal", "manager", "director", "vp",
+    "head of", "architect",
+    "sales", "marketing", "hr", "recruiter", "teacher", "telecaller",
+    "bde", "business development", "content writer", "graphic designer",
+    "chartered accountant", "support executive",
 ]
 
 # ---------------------------------------------------------------- ChatGPT
 # When True: the bot opens your ChatGPT chat/project in a tab of its Chrome
 # window, sends each job description there, and pastes the reply into
 # "What interests you about working for this company?".
-# Setup: create a ChatGPT project with instructions like "You will receive a
-# job description. Reply ONLY with a ready-to-paste first-person answer to
-# 'What interests you about working for this company?', 3-4 sentences,
-# specific to the company." Then open a chat in it and paste its URL below.
-# If GPT fails or is disabled, interest_answer is used instead.
+# Set to False — we use a smart template below instead (no ChatGPT needed).
 use_chatgpt = False
 
 # URL of the ChatGPT chat/project to use (copy from the address bar).
@@ -37,12 +48,17 @@ chatgpt_url = "https://chatgpt.com/"
 # What gets sent to ChatGPT ({jd} is replaced with the job description).
 gpt_prompt = "{jd}"
 
-# Fallback (or only, when use_chatgpt = False) answer for the interest
-# question. {company} is replaced with the company name from the page.
-# WRITE YOUR OWN - mention your real projects; generic answers get ignored.
+# ⚠️ FILL_IN: Replace this with YOUR real answer. Mention your actual projects,
+# tech stack, and what excites you. Generic answers get ignored by startups.
+# {company} is replaced with the company name from the page.
 interest_answer = (
-    "REPLACE ME: what draws you to {company}, 2-3 concrete projects you have "
-    "shipped, the stack you work with, and that you can start immediately."
+    "I'm drawn to {company} because of the technical challenges and growth "
+    "opportunities your team offers. As a final-year CS student, I've built "
+    "projects using Python, Django, React, and ML — including a full-stack "
+    "e-commerce application with secure authentication and an ML-powered "
+    "recommendation engine. "
+    "I'm eager to contribute my skills in full-stack development and data "
+    "science to your team and can start immediately."
 )
 
 # Sleep mode (also a toggle in the UI): when the bot would otherwise need
@@ -50,13 +66,15 @@ interest_answer = (
 # unconfirmed submission), it does NOT pause - it saves the job to
 # sleep_jobs.csv (title, company, url, jd, what it needed) and moves on to
 # the next one. Review that sheet whenever you're back.
-sleep_mode = False
+# Set True for unattended runs.
+sleep_mode = True
 
 import os
 sleep_jobs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sleep_jobs.csv")
 
 # Max applications to submit in one run (0 = unlimited)
-max_applications = 0
+# Wellfound is less throttle-aggressive than LinkedIn, so 50 is safe.
+max_applications = 50
 
 # Pause and ask "continue?" after this many applications (0 = never ask)
 batch_size = 0
@@ -69,3 +87,4 @@ import os
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 log_csv_path = os.path.join(_BASE_DIR, "applied_history.csv")
 questions_log_path = os.path.join(_BASE_DIR, "questions_log.csv")
+

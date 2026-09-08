@@ -3,3 +3,6 @@ __pycache__/
 *.csv
 errors.log
 .DS_Store
+.venv/
+autorun.log
+*_bot_profile/
