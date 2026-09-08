@@ -35,6 +35,10 @@ exclude_title_keywords = [
     "chartered accountant", "support executive",
 ]
 
+# Max years of experience allowed. Jobs requesting more than this will be skipped.
+# 0-2 covers freshers/entry-level.
+max_experience = 2
+
 # ---------------------------------------------------------------- ChatGPT
 # When True: the bot opens your ChatGPT chat/project in a tab of its Chrome
 # window, sends each job description there, and pastes the reply into

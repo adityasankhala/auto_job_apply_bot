@@ -124,11 +124,37 @@ def visible(el) -> bool:
 
 
 def contains_word(text: str, word: str) -> bool:
-    # Trailing "s?" so a keyword also matches its plural: "llm" hits "LLMs",
-    # "embedding" hits "embeddings", "api" hits "APIs". Without it the
-    # trailing boundary rejects the plural outright and the job is skipped.
+    """True if `word` appears as a whole word in `text`."""
     pattern = r"(?<![a-z0-9])" + re.escape(word.lower()) + r"s?(?![a-z0-9])"
     return re.search(pattern, text.lower()) is not None
+
+
+def experience_is_within_limit(text: str, max_allowed: int) -> bool:
+    """Returns True if the job requires <= max_allowed years of experience,
+    or if no explicit experience requirement is found."""
+    text = text.lower()
+    
+    # 1. Match patterns like "3-5 years", "min 5 years", "5+ years" near "experience"
+    matches = re.finditer(r'(?:(?:min|minimum|least)\s+)?(\d+)(?:\s*(?:\+|to|-|–)\s*(\d+))?\s*(?:-\s*)?(?:yr|year)s?(?:\s*of)?\s*(?:industry)?\s*(?:work)?\s*experience', text)
+    
+    max_found = -1
+    for m in matches:
+        val1 = int(m.group(1))
+        # The minimum required is val1 (e.g. "3-5" means minimum 3).
+        if val1 > max_found:
+            max_found = val1
+
+    # 2. Match standalone "5+ years"
+    matches2 = re.finditer(r'(\d+)\+\s*(?:yr|year)s?', text)
+    for m in matches2:
+        val = int(m.group(1))
+        if val > max_found:
+            max_found = val
+
+    if max_found > max_allowed:
+        return False
+        
+    return True
 
 
 def description_matches(description: str) -> bool:
@@ -577,6 +603,12 @@ def process_job(driver, url: str) -> str:
         return "skipped"
 
     jd = driver.find_element(By.TAG_NAME, "body").text
+    
+    if hasattr(config, "max_experience") and not experience_is_within_limit(jd, config.max_experience):
+        log_result(url, title, "skipped - requires too much experience")
+        print(f"⏭️  Requires too much experience: {title}")
+        return "skipped"
+        
     if not description_matches(jd):
         log_result(url, title, "skipped - no keyword match")
         print(f"⏭️  No keyword match: {title}")
