@@ -221,8 +221,8 @@ def collect_listing_links(driver) -> list[str]:
     return links
 
 
-def load_all_results(driver) -> list[str]:
-    """Scroll to load lazy results; follow 'next page' links when present."""
+def load_all_results(driver, max_links: int = 100) -> list[str]:
+    """Scroll to load lazy results; stop after max_links collected."""
     links: list[str] = []
     while True:
         # scroll until no new links appear on this page
@@ -233,7 +233,12 @@ def load_all_results(driver) -> list[str]:
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1.5)
             stable_rounds = stable_rounds + 1 if len(links) == before else 0
+            if len(links) >= max_links:
+                break
         print(f"   ...{len(links)} job links so far")
+        if len(links) >= max_links:
+            print(f"   ✅ Reached {max_links} link cap, stopping scroll.")
+            break
 
         # numbered/next pagination, if any
         next_el = None
@@ -248,12 +253,12 @@ def load_all_results(driver) -> list[str]:
             break
         click(driver, next_el)
         time.sleep(config.action_delay + 1)
-    return links
+    return links[:max_links]
 
 
 def gather_links(driver) -> list[str]:
     print("Collecting job links (scrolling through results)...")
-    all_links = load_all_results(driver)
+    all_links = load_all_results(driver, max_links=100)
     print(f"\nCollected {len(all_links)} job links.")
 
     done = already_seen_urls()
@@ -270,6 +275,9 @@ def gather_links(driver) -> list[str]:
             print(f"⏭️  Excluded without opening ('{word}'): {l.rsplit('/', 1)[-1][:70]}")
         else:
             kept.append(l)
+        if len(kept) >= config.max_applications:
+            print(f"   ✅ Found {config.max_applications} matching jobs, stopping filter.")
+            break
     print(f"{len(kept)} left after removing already-applied and excluded ones.\n")
     return kept
 
