@@ -25,23 +25,28 @@ keywords = [
     "sql", "mongodb", "postgresql",
 ]
 
-# If any of these are present, the job must also have one of these words in the TITLE.
-# Empty list = no strict title requirement.
+# If any of these are present, the job must have at least one of these in the TITLE.
+# Strictly tech/software/data/ML roles.
 require_title_keywords = [
-    "software engineer", "software developer", "sde", "backend", "frontend",
-    "full stack", "fullstack", "ml engineer", "machine learning", "data scientist",
-    "data engineer", "ai engineer", "devops", "sre", "web developer", "app developer",
-    "android", "ios", "react", "python"
+    "software engineer", "software developer", "sde", "software",
+    "backend", "frontend", "full stack", "fullstack",
+    "ml engineer", "machine learning", "data scientist", "data engineer", "ai engineer",
+    "devops", "sre", "cloud engineer", "web developer", "app developer",
+    "developer", "engineer", "python", "java", "golang", "react", "node",
+    "intern", "trainee", "associate"
 ]
 
-# If ANY of these appears in the JOB TITLE (or URL slug), skip without opening.
-# Also editable live in the UI.
+# If ANY of these appears in the JOB TITLE (or URL slug), skip immediately without opening.
 exclude_title_keywords = [
     "senior", "sr.", "lead", "staff", "principal", "manager", "director", "vp",
     "head of", "architect",
     "sales", "marketing", "hr", "recruiter", "teacher", "telecaller",
     "bde", "business development", "content writer", "graphic designer",
     "chartered accountant", "support executive",
+    "financial", "finance", "accounting", "accountant", "controller",
+    "operations", "operator", "sourcer", "talent", "recruitment",
+    "legal", "compliance", "civil", "mechanical", "electrical", "hardware",
+    "designer", "cad", "lxd", "filmmaker", "video"
 ]
 
 # Max years of experience allowed. Jobs requesting more than this will be skipped.

@@ -186,11 +186,13 @@ def title_missing_required(title: str) -> bool:
 
 def url_excluded(url: str) -> str | None:
     slug = url.rstrip("/").rsplit("/", 1)[-1].split("?")[0].replace("-", " ")
-    excluded_word = title_excluded(slug)
+    # remove leading numeric id like "4231098 "
+    clean_slug = re.sub(r"^\d+\s*", "", slug)
+    excluded_word = title_excluded(clean_slug)
     if excluded_word:
         return excluded_word
-    if title_missing_required(slug):
-        return "missing required title keyword"
+    if title_missing_required(clean_slug):
+        return "not a software/tech role"
     return None
 
 
@@ -304,26 +306,37 @@ SUBMIT_SEL = ("button[data-test='JobApplicationModal--SubmitButton'], "
 
 
 def find_submit(driver):
-    """Finds the final submit button in the modal or slide-in."""
+    """Finds the final submit button inside the modal or slide-in. NEVER matches 'apply'."""
+    for el in driver.find_elements(By.CSS_SELECTOR, SUBMIT_SEL):
+        if visible(el):
+            return el
     el = driver.execute_script("""
-        var btns = document.querySelectorAll('button');
-        for (var i = 0; i < btns.length; i++) {
-            var b = btns[i];
+        // First look inside dialog / modal / form
+        var containers = document.querySelectorAll('[role="dialog"], [data-test*="Modal"], [data-test*="SlideIn"], form');
+        for (var c = 0; c < containers.length; c++) {
+            var btns = containers[c].querySelectorAll('button, input[type="submit"]');
+            for (var i = 0; i < btns.length; i++) {
+                var b = btns[i];
+                if (!b.offsetParent && b.offsetWidth === 0) continue;
+                var t = (b.textContent || b.value || '').trim().toLowerCase();
+                if (t === 'send application' || t === 'submit application' || t === 'submit' || t === 'send') {
+                    return b;
+                }
+            }
+        }
+        // Then global buttons with explicit submit text (NEVER 'apply')
+        var allBtns = document.querySelectorAll('button');
+        for (var i = 0; i < allBtns.length; i++) {
+            var b = allBtns[i];
             if (!b.offsetParent && b.offsetWidth === 0) continue;
             var t = (b.textContent || '').trim().toLowerCase();
-            if (t === 'submit application' || t === 'send application' || t === 'apply') {
+            if (t === 'send application' || t === 'submit application') {
                 return b;
             }
         }
         return null;
     """)
-    if el is not None:
-        return el
-    # Fallback to the old data-test selectors
-    for el in driver.find_elements(By.CSS_SELECTOR, SUBMIT_SEL):
-        if visible(el):
-            return el
-    return None
+    return el
 
 
 def find_page_apply(driver):
@@ -763,32 +776,57 @@ def apply_loop(driver, all_links: list[str]) -> int:
 
 
 def _is_logged_in(driver) -> bool:
-    """Check if user is logged in to Wellfound."""
+    """Check if user is actually logged in to Wellfound.
+    Returns True only if confirmed logged in, False otherwise."""
     try:
-        # Wait for page to at least start rendering
-        time.sleep(1)
         url = driver.current_url.lower()
         if '/login' in url or '/signup' in url or 'authwall' in url:
             return False
-        
-        # If there's a "Log In" or "Sign Up" button on the page, we are not logged in.
-        login_btns = driver.execute_script("""
-            var links = document.querySelectorAll('a, button');
-            for (var i=0; i<links.length; i++) {
-                var t = (links[i].textContent || '').trim().toLowerCase();
-                if (t === 'log in' || t === 'sign up') return true;
+
+        # 1. If any visible Login or Sign Up button/link exists, definitely NOT logged in
+        is_logged_out = driver.execute_script("""
+            var elements = document.querySelectorAll('a, button');
+            for (var i = 0; i < elements.length; i++) {
+                var el = elements[i];
+                if (!el.offsetParent && el.offsetWidth === 0) continue;
+                var href = (el.getAttribute('href') || '').toLowerCase();
+                var text = (el.textContent || '').trim().toLowerCase();
+                if (href.indexOf('/login') !== -1 || href.indexOf('/signup') !== -1 || href.indexOf('/join') !== -1) {
+                    return true;
+                }
+                if (text === 'log in' || text === 'sign up' || text === 'sign in' || text === 'join') {
+                    return true;
+                }
             }
             return false;
         """)
-        if login_btns:
+        if is_logged_out:
             return False
-            
-        # To be sure we are logged in, we should see an avatar or the "Jobs" header
-        # but Wellfound UI changes often. Let's just say if there's no Log In button,
-        # and we are on /jobs, we might be logged in. 
-        # But to prevent race condition where page is blank, check if body has content.
-        has_content = driver.execute_script("return document.body.innerText.length > 100;")
-        return has_content
+
+        # 2. Check for confirmed logged-in indicators (avatar, profile link, user menu, messages)
+        is_logged_in = driver.execute_script("""
+            var loggedInSelectors = [
+                "[data-test='NavUser']",
+                "[data-test='UserMenu']",
+                "a[href*='/profile']",
+                "a[href*='/messages']",
+                "a[href*='/matches']",
+                "img[alt*='avatar']",
+                "button[aria-label*='User profile']",
+                "button[aria-label*='user menu']"
+            ];
+            for (var i = 0; i < loggedInSelectors.length; i++) {
+                var el = document.querySelector(loggedInSelectors[i]);
+                if (el && (el.offsetParent || el.offsetWidth > 0)) {
+                    return true;
+                }
+            }
+            if (document.cookie.indexOf('ajs_user_id') !== -1) {
+                return true;
+            }
+            return false;
+        """)
+        return bool(is_logged_in)
     except Exception:
         return False
 
@@ -798,56 +836,34 @@ def main():
 
     # Navigate to Wellfound jobs page
     driver.get("https://wellfound.com/jobs")
-    time.sleep(5)
+    time.sleep(3)
 
-    # Check login state
-    if not _is_logged_in(driver):
-        print("\n" + "=" * 70)
-        print("  ⚠️  NOT LOGGED IN to Wellfound")
-        print("=" * 70)
-        print()
-        print("  This bot uses a SEPARATE Chrome profile (~/.wellfound_bot_profile).")
-        print("  Your regular Chrome login does NOT carry over.")
-        print()
-        print("  👉 Please log in to Wellfound in the Chrome window that just opened.")
-        print("     (Use email/password or Google sign-in)")
-        print()
+    print("\n" + "=" * 70)
+    print("  🎯 WELLFOUND AUTO APPLIER")
+    print("=" * 70)
+    print("\n  Chrome has opened with your persistent profile.")
+    print("  If you are not logged in, please log in now.")
+    print("  Then configure your search filters (keywords, location, remote, etc.).")
+    print("  (Tip: tick 'Hide jobs which require me to apply on the company's website')")
+    print("=" * 70)
 
-        # Navigate to the login page for convenience
-        driver.get("https://wellfound.com/login")
+    while True:
+        input("\n👉 Once you are LOGGED IN and on your filtered jobs page, press ENTER here... ")
         time.sleep(2)
-
-        # Wait for login
-        print("  Waiting for you to log in...", end="", flush=True)
-        for _ in range(300):  # wait up to 5 minutes
-            time.sleep(3)
-            if _is_logged_in(driver):
-                break
-            # Also check if they navigated away from login (successful redirect)
-            url = driver.current_url.lower()
-            if '/login' not in url and '/signup' not in url:
-                time.sleep(2)
-                if _is_logged_in(driver):
-                    break
+        if _is_logged_in(driver):
+            print("  ✅ Confirmed: You are logged in!")
+            break
         else:
-            print("\n\n  ❌ Timed out waiting for login. Please try again.")
-            driver.quit()
-            return
-
-        print(" ✅ Logged in!")
-        # Go back to jobs page
-        driver.get("https://wellfound.com/jobs")
-        time.sleep(3)
-
-    input(
-        "\nLog in to Wellfound and set your job filters "
-        "(tip: tick 'Hide jobs which require me to apply on the company's website'),\n"
-        "then press ENTER to start applying... "
-    )
+            print("  ⚠️  Login / Sign Up links still detected in Chrome.")
+            print("     Please log in to your account first so the bot can apply.")
 
     all_links = gather_links(driver)
-    apply_loop(driver, all_links)
-    input("Press ENTER to close the browser... ")
+    if not all_links:
+        print("\n⚠️ No matching jobs found to apply for. Please check your search filters.")
+    else:
+        apply_loop(driver, all_links)
+
+    input("\nPress ENTER to close the browser... ")
     driver.quit()
 
 
